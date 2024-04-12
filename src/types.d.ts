@@ -3,6 +3,7 @@ import { GraphqlType, TaskType } from './enums.js'
 export interface TypeGraphqlAttr {
   name: string
   dataType: string
+  isPrimaryKeyField?: boolean | null
   gqlType?: string
   default?: string
   optional?: boolean
@@ -15,12 +16,14 @@ export interface TypeGraphqlAttr {
 
 export interface TypeGraphqlClass {
   name: string
+  description?: string
   active?: boolean | null
   graphqlType?: GraphqlType
   extends?: string | null
   path?: string | null
   dbCollectionName?: string | null
   attributes: TypeGraphqlAttr[]
+  isTypeOrmModel?: boolean | null
   backUpFiles?: boolean | null
 }
 
