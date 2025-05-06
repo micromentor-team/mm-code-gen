@@ -1,4 +1,4 @@
-import { TypeGraphqlAttr, TypeGraphqlClass } from '../../types.js'
+import { TypeGraphqlAttr, BgModelDef } from '../../types.js'
 import { GraphqlType } from '../../enums.js'
 
 const getGqlType = (attr: TypeGraphqlAttr, isInputType: boolean): string => {
@@ -26,6 +26,14 @@ const getGqlType = (attr: TypeGraphqlAttr, isInputType: boolean): string => {
 
   if (attr.dataType.startsWith('string')) {
     s = 'String'
+  }
+
+  if (attr.dataType.startsWith('long')) {
+    s = 'GraphQlLong'
+  }
+
+  if (attr.dataType.startsWith('json')) {
+    s = 'GraphQlJson'
   }
 
   if (attr.dataType.startsWith('id')) {
@@ -65,6 +73,10 @@ const getTypescriptType = (attr: TypeGraphqlAttr, isInputType: boolean): string 
     s = 'number'
   } else if (s.startsWith('id')) {
     s = 'string'
+  } else if (s.startsWith('long') || s.startsWith('GraphQlLong')) {
+    s = 'number'
+  } else if (s.startsWith('json') || s.startsWith('GraphQlJson')) {
+    s = 'object'
   // } else {
   //   return attr.dataType
   }
@@ -136,7 +148,7 @@ const getDefaultText = (attr: TypeGraphqlAttr, isOptional: boolean): string => {
   return ''
 }
 
-const getClassAttributes = (config: TypeGraphqlClass, indentLevel: number): string[] => {
+const getClassAttributes = (config: BgModelDef, indentLevel: number): string[] => {
   const isInputType = config.graphqlType === GraphqlType.InputType
   let lines: string[] = []
   const prefix = '                          '.substring(0, indentLevel)
