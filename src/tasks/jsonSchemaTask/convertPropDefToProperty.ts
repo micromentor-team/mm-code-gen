@@ -1,10 +1,17 @@
-import { JsonSchemaTask, TypeGraphqlAttr } from '../../types.js'
+import {
+  BgCodeGenProject,
+  BgModelDefTaskConfig,
+  JsonSchemaTask,
+  ModelPropDef
+} from '../../types.js'
 import getPropertiesForModelDef from './getPropertiesForModelDef.js'
 
 const convertPropDefToProperty = (
-  propDef: TypeGraphqlAttr,
+  propDef: ModelPropDef,
   nestedModelNames: string[],
   task: JsonSchemaTask,
+  modelDefTaskConfig: BgModelDefTaskConfig,
+  project: BgCodeGenProject,
 ): any | null => {
   if (propDef.schema?.skip) {
     return null;
@@ -31,9 +38,22 @@ const convertPropDefToProperty = (
     const enumInfo = task.enumInfos.find(e => e.name === dataType);
 
     if (enumInfo) {
-      prop.type = 'string';
-      prop.enum = enumInfo.values;
-      prop.enumType = enumInfo.name;
+      if (isArray) {
+        prop.items = {
+          // type: propDef.optional
+          //   ? `['string', 'null']` :
+          //   'string',
+          type: 'string',
+          enum: propDef.optional ? enumInfo.values.concat([null]) : enumInfo.values,
+          // Adding `enumType` breaks RxDB:
+          // enumType: enumInfo.name,
+        };
+      } else {
+        prop.type = 'string';
+        prop.enum = propDef.optional ? enumInfo.values.concat([null]) : enumInfo.values;
+        // Adding `enumType` breaks RxDB:
+        // prop.enumType = enumInfo.name;
+      }
     }
   }
 
@@ -41,19 +61,27 @@ const convertPropDefToProperty = (
     .find(m => m.name === dataType);
 
   if (referencedModelDef) {
+    const properties = getPropertiesForModelDef(
+      referencedModelDef,
+      nestedModelNames,
+      task,
+      modelDefTaskConfig,
+      project,
+    );
+
     prop.type = isArray ? 'array' : 'object';
     if (isArray) {
       prop.items = {
         type: 'object',
+        properties,
       };
+    } else {
+      prop.properties = properties;
     }
-    prop.properties = getPropertiesForModelDef(referencedModelDef, nestedModelNames, task);
     if (prop.properties === null) {
       return null;
     }
-  }
-
-  if (
+  } else if (
     dataType.toLowerCase() === 'string' ||
     dataType.toLowerCase() === 'id'
   ) {
@@ -72,13 +100,13 @@ const convertPropDefToProperty = (
     }
 
     if (maxLength) {
-      prop.maxLength = maxLength;
+      if (isArray) {
+        prop.items.maxLength = maxLength;
+      } else {
+        prop.maxLength = maxLength;
+      }
     }
-
-    return prop;
-  }
-
-  if (dataType.toLowerCase() === 'boolean') {
+  } else if (dataType.toLowerCase() === 'boolean') {
     if (isArray) {
       prop.items = {
         type: 'boolean',
@@ -86,11 +114,7 @@ const convertPropDefToProperty = (
     } else {
       prop.type = 'boolean';
     }
-
-    return prop;
-  }
-
-  if (dataType.toLowerCase() === 'date') {
+  } else if (dataType.toLowerCase() === 'date') {
     if (isArray) {
       prop.items = {
         type: 'string',
@@ -100,11 +124,7 @@ const convertPropDefToProperty = (
       prop.type = 'string';
       prop.format = 'date-time';
     }
-
-    return prop;
-  }
-
-  if (dataType.toLowerCase() === 'float') {
+  } else if (dataType.toLowerCase() === 'float') {
     if (isArray) {
       prop.items = {
         type: 'number',
@@ -112,11 +132,7 @@ const convertPropDefToProperty = (
     } else {
       prop.type = 'number';
     }
-
-    return prop;
-  }
-
-  if (
+  } else if (
     dataType.toLowerCase() === 'integer' ||
     dataType.toLowerCase() === 'long'
   ) {
@@ -127,11 +143,7 @@ const convertPropDefToProperty = (
     } else {
       prop.type = 'integer';
     }
-
-    return prop;
-  }
-
-  if (
+  } else if (
     dataType.toLowerCase() === 'json' ||
     dataType.toLowerCase() === 'object'
   ) {
@@ -142,8 +154,10 @@ const convertPropDefToProperty = (
     } else {
       prop.type = 'object';
     }
+  }
 
-    return prop;
+  if (propDef.optional) {
+    prop.nullable = true;
   }
 
   return prop;

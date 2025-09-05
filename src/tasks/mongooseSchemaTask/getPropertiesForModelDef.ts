@@ -1,12 +1,19 @@
-import { BgModelDef, JsonSchemaTask } from '../../types.js'
-import getPropertyDefsForModelDef from './getPropertyDefsForModelDef.js'
+import {
+  BgCodeGenProject,
+  BgModelDef,
+  BgModelDefTaskConfig,
+  MongooseSchemaTask
+} from '../../types.js'
+import getAllPropertyDefsForModelDef from '../helpers/getAllPropertyDefsForModelDef.js'
 import convertPropDefToProperty from './convertPropDefToProperty.js'
 
 const getPropertiesForModelDef = (
   modelDef: BgModelDef,
   nestedModelNames: string[],
   level: number,
-  task: JsonSchemaTask,
+  task: MongooseSchemaTask,
+  modelDefTaskConfig: BgModelDefTaskConfig,
+  project: BgCodeGenProject,
 ): string[] => {
   const nestedMatchingNames = nestedModelNames.filter(name => name === modelDef.name)
   if (nestedMatchingNames.length > 1) {
@@ -14,21 +21,37 @@ const getPropertiesForModelDef = (
   }
   nestedModelNames.push(modelDef.name);
 
-  const propDefs = getPropertyDefsForModelDef(modelDef, task);
+  let propDefs = getAllPropertyDefsForModelDef(
+    modelDef,
+    task,
+    modelDefTaskConfig,
+    project,
+  ).filter(d => !d.schema?.skip);
 
   if (!Array.isArray(propDefs) || propDefs.length < 1) {
     return [];
   }
 
-  const properties: string[] = [];
-  for (const attr of propDefs.filter(d => !d.schema?.skip)) {
-    const prop = convertPropDefToProperty(attr, nestedModelNames, level, task);
+  if (Array.isArray(modelDefTaskConfig.removeProps) && modelDefTaskConfig.removeProps.length > 0) {
+    propDefs = propDefs.filter(p => !modelDefTaskConfig.removeProps!.includes(p.name));
+  }
+
+  const props: string[] = [];
+  for (const propDef of propDefs) {
+    const prop = convertPropDefToProperty(
+      propDef,
+      nestedModelNames,
+      level,
+      task,
+      modelDefTaskConfig,
+      project,
+    );
     if (prop) {
-      properties.push(prop);
+      props.push(prop);
     }
   }
 
-  return properties;
+  return props;
 }
 
 export default getPropertiesForModelDef
